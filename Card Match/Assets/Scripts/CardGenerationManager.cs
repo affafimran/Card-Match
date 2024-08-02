@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 public class CardGenerationManager : MonoBehaviour
@@ -42,6 +43,8 @@ public class CardGenerationManager : MonoBehaviour
 
     //Audio Controller Component
     [SerializeField] private AudioManager audioManager;
+
+    public TMP_Text TMP_Text;
 
     #endregion
 
@@ -194,16 +197,18 @@ public class CardGenerationManager : MonoBehaviour
     }
 
 
+
     IEnumerator dealCards()
     {
         GameObject[] cards = GameObject.FindGameObjectsWithTag("Card");
+       // GameObject[] cardsShadow = GameObject.FindGameObjectsWithTag("CardShadow");
         GameObject[] destinations = GameObject.FindGameObjectsWithTag("Destination");
 
         for (int i = 0; i < cards.Length; i++)
         {
             float t = 0;
 
-            if (audioManager. soundDealCard != null)
+            if (audioManager.soundDealCard != null)
                 audioManager.PlaySound(audioManager.soundDealCard);
 
             while (t < 1f)
@@ -224,6 +229,153 @@ public class CardGenerationManager : MonoBehaviour
 
         yield return 0;
     }
+
+    void UncoverCard(Transform card)
+    {
+        StartCoroutine(uncoverCard(card, true));
+    }
+
+    IEnumerator uncoverCard(Transform card, bool uncover)
+    {
+        isUncovering = true;
+
+        float minAngle = uncover ? 0 : 180;
+        float maxAngle = uncover ? 180 : 0;
+
+        float t = 0;
+        bool uncovered = false;
+
+        if (audioManager.soundUncoverCard != null)
+            audioManager.PlaySound(audioManager.soundUncoverCard);
+
+       
+        
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime * uncoverTime;
+
+            float angle = Mathf.LerpAngle(minAngle, maxAngle, t);
+            card.eulerAngles = new Vector3(0, angle, 0);
+
+            
+
+            if (((angle >= 90 && angle < 180) ||
+                  (angle >= 270 && angle < 360)) && !uncovered)
+            {
+                uncovered = true;
+                for (int i = 0; i < card.childCount; i++)
+                {
+                    // reverse sorting order to show the otherside of the card
+                    // otherwise you would still see the same sprite because they are sorted 
+                    // by order not distance (by default)
+                    Transform c = card.GetChild(i);
+                    c.GetComponent<SpriteRenderer>().sortingOrder *= -1;
+
+                    yield return null;
+                }
+            }
+
+            yield return null;
+        }
+
+        // check if we uncovered 2 cards
+        if (uncoveredCards == 2)
+        {
+            // if so compare the cards
+            if (selectedCards[0].GetComponent<Card>().Pair !=
+               selectedCards[1].GetComponent<Card>().Pair)
+            {
+                if (audioManager.soundNoPair != null)
+                    audioManager.PlaySound(audioManager.soundNoPair);
+
+                // if they are not equal cover back
+                yield return new WaitForSeconds(checkPairTime);
+                StartCoroutine(uncoverCard(selectedCards[0], false));
+                StartCoroutine(uncoverCard(selectedCards[1], false));
+            }
+            else
+            {
+                if (audioManager.soundFoundPair != null)
+                    audioManager.PlaySound(audioManager.soundFoundPair);
+
+                // set as solved
+                selectedCards[0].GetComponent<Card>().Solved = true;
+                selectedCards[1].GetComponent<Card>().Solved = true;
+            }
+            selectedCards[0].GetComponent<Card>().Selected = false;
+            selectedCards[1].GetComponent<Card>().Selected = false;
+            uncoveredCards = 0;
+            totalMoves++;
+            TMP_Text.text = "Total Moves: " + totalMoves;
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        // check if the memory is solved
+        if (IsSolved())
+        {
+            int score = PlayerPrefs.GetInt("Memory_" + pairCount + "_Pairs", 0);
+
+            if (score > totalMoves || score == 0)
+            {
+                bestMoves = totalMoves;
+            }
+            PlayerPrefs.SetInt("Memory_" + pairCount + "_Pairs", bestMoves);
+            Debug.Log("Finished");
+            //memorySolved = true;
+        }
+
+        isUncovering = false;
+        yield return 0;
+    }
+
+    bool IsSolved()
+    {
+        foreach (GameObject g in GameObject.FindGameObjectsWithTag("Card"))
+        {
+            if (!g.GetComponent<Card>().Solved)
+                return false;
+        }
+
+        return true;
+    }
+
+
+    void Update()
+    {
+        if (isDealing)
+            return;
+
+        if ((Input.GetMouseButtonDown(0) || Input.touchCount > 0) && !isTouching && !isUncovering && uncoveredCards < 2)
+        {
+            isTouching = true;
+
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit2D hit = Physics2D.Raycast(ray.origin, ray.direction);
+
+            // we hit a card
+            if (hit.collider != null)
+            {
+                if (!hit.collider.GetComponent<Card>().Selected)
+                {
+                    // and its not one of the already solved ones
+                    if (!hit.collider.GetComponent<Card>().Solved)
+                    {
+                        // uncover it
+                        UncoverCard(hit.collider.transform);
+                        selectedCards[uncoveredCards] = hit.collider.transform;
+                        selectedCards[uncoveredCards].GetComponent<Card>().Selected = true;
+                        uncoveredCards += 1;
+                    }
+                }
+            }
+        }
+        else
+        {
+            isTouching = false;
+        }
+    }
+
 
     Vector2 LineIntersectionPoint(Vector2 ps1, Vector2 pe1, Vector2 ps2, Vector2 pe2)
     {
