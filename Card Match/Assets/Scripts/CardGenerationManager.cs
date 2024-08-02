@@ -5,7 +5,7 @@ using UnityEngine;
 
 public class CardGenerationManager : MonoBehaviour
 {
-
+    public static CardGenerationManager instance;
 
 	// Public Variables
     #region
@@ -64,7 +64,7 @@ public class CardGenerationManager : MonoBehaviour
     int uncoveredCards = 0;
     Transform[] selectedCards = new Transform[2];
 
-    Stack<Transform> openedCards = new Stack<Transform>();
+    public Queue<Transform> openedCards = new Queue<Transform>();
 
     int oldPairCount;
     
@@ -76,7 +76,8 @@ public class CardGenerationManager : MonoBehaviour
 
     private void Start()
     {
-        CreateDeck();
+       instance = this;
+       //CreateDeck();
     }
 
     public void CreateDeck()
@@ -201,15 +202,15 @@ public class CardGenerationManager : MonoBehaviour
     IEnumerator dealCards()
     {
         GameObject[] cards = GameObject.FindGameObjectsWithTag("Card");
-       // GameObject[] cardsShadow = GameObject.FindGameObjectsWithTag("CardShadow");
+        // GameObject[] cardsShadow = GameObject.FindGameObjectsWithTag("CardShadow");
         GameObject[] destinations = GameObject.FindGameObjectsWithTag("Destination");
-
         for (int i = 0; i < cards.Length; i++)
         {
             float t = 0;
-
             if (audioManager.soundDealCard != null)
+            {
                 audioManager.PlaySound(audioManager.soundDealCard);
+            }
 
             while (t < 1f)
             {
@@ -279,7 +280,7 @@ public class CardGenerationManager : MonoBehaviour
             yield return null;
         }
 
-        // check if we uncovered 2 cards
+        //check if we uncovered 2 cards
         if (uncoveredCards == 2)
         {
             // if so compare the cards
@@ -363,6 +364,8 @@ public class CardGenerationManager : MonoBehaviour
                     {
                         // uncover it
                         UncoverCard(hit.collider.transform);
+                        openedCards.Enqueue(hit.collider.transform);
+                        print(openedCards.Count);
                         selectedCards[uncoveredCards] = hit.collider.transform;
                         selectedCards[uncoveredCards].GetComponent<Card>().Selected = true;
                         uncoveredCards += 1;
@@ -399,5 +402,13 @@ public class CardGenerationManager : MonoBehaviour
             (B2 * C1 - B1 * C2) / delta,
             (A1 * C2 - A2 * C1) / delta
             );
+    }
+
+
+    public void StartGame(int rows, int cols)
+    {
+        rowCount= rows;
+        columnCount= cols;
+        CreateDeck();
     }
 }
