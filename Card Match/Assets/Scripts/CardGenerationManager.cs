@@ -104,7 +104,7 @@ public class CardGenerationManager : MonoBehaviour
         }
         tmp.Shuffle();
 
-        chosenCardsFront = tmp.GetRange(0, spriteCardFront.Length).ToArray();
+        chosenCardsFront = tmp.GetRange(0, pairCount).ToArray();
 
         // this holds all the cards
         cardParent = new GameObject("DeckParent");
@@ -204,7 +204,7 @@ public class CardGenerationManager : MonoBehaviour
             float t = 0;
 
             if (audioManager. soundDealCard != null)
-                GetComponent<AudioSource>().PlayOneShot(audioManager.soundDealCard);
+                audioManager.PlaySound(audioManager.soundDealCard);
 
             while (t < 1f)
             {
