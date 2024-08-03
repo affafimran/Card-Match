@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.ConstrainedExecution;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Playables;
 
 public class CardGenerationManager : MonoBehaviour
 {
@@ -23,19 +25,15 @@ public class CardGenerationManager : MonoBehaviour
 
     // How fast to match 2 card, higher values = slower
     [Range(0.1f, 10f)]
-
     public float checkPairTime = 0.5f;
 
-	// The Padding between 2 Cards
-    [Range(2, 6)]
+	
     public int cardsPadding = 4;
 
-    // Row count
-    [Range(2,6)]
+    
     public int rowCount = 2;
 
-	// Column Count
-    [Range(2,6)]
+	
     public int columnCount = 2;
 
 	// Base card object to Instantiate
@@ -46,11 +44,12 @@ public class CardGenerationManager : MonoBehaviour
 
     public TMP_Text TMP_Text;
 
+    public static bool isLoadedGame = false;
     #endregion
 
     // Private Variables
     #region
-    
+    public GameData gameData;
     int pairCount = 4;
 
     int chosenCardsBack = 0;
@@ -77,12 +76,21 @@ public class CardGenerationManager : MonoBehaviour
     private void Start()
     {
        instance = this;
-       //CreateDeck();
+      
+    }
+
+    public void LoadGameDeck(GameData data)
+    {
+        gameData = data;
+        isLoadedGame = true;
+        rowCount = gameData.rowCount;
+        columnCount=gameData.columnCount;
+        CreateDeck();
     }
 
     public void CreateDeck()
     {
-        GameObject cardParent = GameObject.Find("CardParent");
+        GameObject cardParent = GameObject.Find("DeckParent");
 
 
         // clear the game field and reset variables
@@ -132,7 +140,7 @@ public class CardGenerationManager : MonoBehaviour
 
         int cardWidth = 0;
         int cardHeight = 0;
-
+        int loadChange = 0;
         for (int x = 0; x < columnCount; x++)
         {
             for (int y = 0; y < rowCount; y++)
@@ -143,19 +151,50 @@ public class CardGenerationManager : MonoBehaviour
                 GameObject tempCard = Instantiate(cardObject);
                 GameObject destination = new GameObject("Destination");
 
-                tempCard.GetComponent<Card>().cardFront.sprite = spriteCardFront[chosenCardsFront[deck[cur]]];
-                tempCard.GetComponent<Card>().cardFront.sortingOrder = -1;
+                if (!isLoadedGame)
+                {
 
-                tempCard.GetComponent<Card>().cardBack.sprite = spriteCardBack[chosenCardsBack];
-                tempCard.GetComponent<Card>().cardBack.sortingOrder = 1;
+                    tempCard.GetComponent<Card>().cardFront.sprite = spriteCardFront[chosenCardsFront[deck[cur]]];
+                    tempCard.GetComponent<Card>().cardFront.sortingOrder = -1;
 
-                cardWidth = (int)spriteCardBack[chosenCardsBack].rect.width;
-                cardHeight = (int)spriteCardBack[chosenCardsBack].rect.height;
+                    tempCard.GetComponent<Card>().cardBack.sprite = spriteCardBack[chosenCardsBack];
+                    tempCard.GetComponent<Card>().cardBack.sortingOrder = 1;
 
-                tempCard.transform.parent = cardParent.transform;
-                tempCard.transform.position = dealingStartPosition;
-                tempCard.GetComponent<BoxCollider2D>().size= new Vector2 (cardWidth, cardHeight);
-                tempCard.GetComponent<Card>().Pair = deck[cur];
+                    cardWidth = (int)spriteCardBack[chosenCardsBack].rect.width;
+                    cardHeight = (int)spriteCardBack[chosenCardsBack].rect.height;
+
+                    tempCard.transform.parent = cardParent.transform;
+                    tempCard.transform.position = dealingStartPosition;
+                    tempCard.GetComponent<Card>().Pair = deck[cur];
+                }
+                else
+                {
+                    tempCard.GetComponent<Card>().cardFront.sprite = gameData.cards[y + loadChange].cardFront;
+                    
+                    tempCard.GetComponent<Card>().cardBack.sprite = gameData.cards[y + loadChange].cardBack;
+
+                    if (gameData.cards[y + loadChange].Solved)
+                    {
+                        tempCard.GetComponent<Card>().cardFront.flipX = false;
+                        tempCard.GetComponent<Card>().cardFront.sortingOrder = 1;
+                        tempCard.GetComponent<Card>().cardBack.sortingOrder = -1;
+                    }
+                    else
+                    {
+                        tempCard.GetComponent<Card>().cardFront.sortingOrder = -1;
+                        tempCard.GetComponent<Card>().cardBack.sortingOrder = 1;
+
+                    }
+
+                    cardWidth = (int)gameData.cards[y + loadChange].cardBack.rect.width;
+                    cardHeight = (int)gameData.cards[y + loadChange].cardBack.rect.height;
+
+                    tempCard.transform.parent = cardParent.transform;
+                    tempCard.transform.position = dealingStartPosition;
+                    tempCard.GetComponent<Card>().Pair = gameData.cards[y + loadChange].pair;
+                    tempCard.GetComponent<Card>().Solved = gameData.cards[y + loadChange].Solved;
+                    
+                }
 
                 destination.tag = "Destination";
                 destination.transform.parent = temp.transform;
@@ -166,12 +205,16 @@ public class CardGenerationManager : MonoBehaviour
                 Vector3 pos = destination.transform.position;
                 minX = Mathf.Min(minX, pos.x - cardWidth);
                 minY = Mathf.Min(minY, pos.y - cardHeight);
-                maxX = Mathf.Max(maxX, pos.x + cardWidth );
-                maxY = Mathf.Max(maxY, pos.y + cardHeight );
+                maxX = Mathf.Max(maxX, pos.x + cardWidth);
+                maxY = Mathf.Max(maxY, pos.y + cardHeight);
             }
+            loadChange += columnCount;
         }
+        
 
-        float tableScale = (GameObject.Find("Table") == null) ? 1f : GameObject.Find("Table").transform.localScale.x;
+        
+
+        float tableScale = rowCount>columnCount ? 1.6f : GameObject.Find("Table").transform.localScale.x;
         float scale = tableScale / (maxX + cardsPadding);
 
         Vector2 point = LineIntersectionPoint(
@@ -202,10 +245,10 @@ public class CardGenerationManager : MonoBehaviour
     IEnumerator dealCards()
     {
         GameObject[] cards = GameObject.FindGameObjectsWithTag("Card");
-        // GameObject[] cardsShadow = GameObject.FindGameObjectsWithTag("CardShadow");
         GameObject[] destinations = GameObject.FindGameObjectsWithTag("Destination");
         for (int i = 0; i < cards.Length; i++)
         {
+            
             float t = 0;
             if (audioManager.soundDealCard != null)
             {
@@ -341,6 +384,19 @@ public class CardGenerationManager : MonoBehaviour
         return true;
     }
 
+    public void RestartGame()
+    {
+        GameObject cardParent = GameObject.Find("DeckParent");
+        GameObject destinationParent = GameObject.Find("Temp");
+        if (cardParent)
+        {
+            Destroy(cardParent);
+        }
+        if (destinationParent)
+        {
+            Destroy(destinationParent);
+        }
+    }
 
     void Update()
     {
@@ -410,5 +466,41 @@ public class CardGenerationManager : MonoBehaviour
         rowCount= rows;
         columnCount= cols;
         CreateDeck();
+    }
+
+    public GameData SaveData()
+    {
+        gameData.rowCount = rowCount;
+        gameData.columnCount = columnCount;
+        GameObject[] cards = GameObject.FindGameObjectsWithTag("Card");
+        if (gameData.cards.Count > 0)
+        {
+            for (int i = 0; i < cards.Length; i++)
+            {
+                
+                gameData.cards[i].pair = cards[i].GetComponent<Card>().Pair;
+                gameData.cards[i].Solved = cards[i].GetComponent<Card>().Solved;
+                gameData.cards[i].cardFront = cards[i].GetComponent<Card>().cardFront.sprite;
+                gameData.cards[i].cardBack = cards[i].GetComponent<Card>().cardBack.sprite;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < cards.Length; i++)
+            {
+                CardData cardData = new CardData();
+                cardData.pair = cards[i].GetComponent<Card>().Pair;
+                cardData.Solved = cards[i].GetComponent<Card>().Solved;
+                cardData.cardFront = cards[i].GetComponent<Card>().cardFront.sprite;
+                cardData.cardBack = cards[i].GetComponent<Card>().cardBack.sprite;
+                gameData.cards.Add(cardData);
+            }
+        }
+        return gameData;
+    }
+
+    public bool CheckCompleteStatus()
+    {
+        return IsSolved();
     }
 }
