@@ -1,6 +1,6 @@
-
 using UnityEngine;
 
+[System.Serializable]
 public class Card : MonoBehaviour
 {
     // The pair identifier for the card

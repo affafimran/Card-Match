@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.ConstrainedExecution;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Playables;
 
 public class CardGenerationManager : MonoBehaviour
 {
@@ -50,7 +52,7 @@ public class CardGenerationManager : MonoBehaviour
 
     // Private Variables
     #region
-    
+    public GameData gameData;
     int pairCount = 4;
 
     int chosenCardsBack = 0;
@@ -78,6 +80,11 @@ public class CardGenerationManager : MonoBehaviour
     {
        instance = this;
        //CreateDeck();
+    }
+
+    public void LoadGameDeck()
+    {
+        
     }
 
     public void CreateDeck()
@@ -156,6 +163,7 @@ public class CardGenerationManager : MonoBehaviour
                 tempCard.transform.position = dealingStartPosition;
                 tempCard.GetComponent<BoxCollider2D>().size= new Vector2 (cardWidth, cardHeight);
                 tempCard.GetComponent<Card>().Pair = deck[cur];
+                
 
                 destination.tag = "Destination";
                 destination.transform.parent = temp.transform;
@@ -206,6 +214,7 @@ public class CardGenerationManager : MonoBehaviour
         GameObject[] destinations = GameObject.FindGameObjectsWithTag("Destination");
         for (int i = 0; i < cards.Length; i++)
         {
+            
             float t = 0;
             if (audioManager.soundDealCard != null)
             {
@@ -410,5 +419,23 @@ public class CardGenerationManager : MonoBehaviour
         rowCount= rows;
         columnCount= cols;
         CreateDeck();
+    }
+
+    public GameData SaveData()
+    {
+        GameObject[] cards = GameObject.FindGameObjectsWithTag("Card");
+        for (int i=0;i<cards.Length;i++)
+        {
+            CardData cardData = new CardData();
+            cardData.pair = cards[i].GetComponent<Card>().Pair;
+            cardData.Solved = cards[i].GetComponent<Card>().Solved;
+            gameData.cards.Add(cardData);
+        }
+        return gameData;
+    }
+
+    public bool CheckCompleteStatus()
+    {
+        return IsSolved();
     }
 }
