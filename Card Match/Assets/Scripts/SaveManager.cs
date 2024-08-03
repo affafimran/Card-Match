@@ -16,6 +16,10 @@ public class SaveManager : MonoBehaviour
 
     public void SaveGame(GameData cardData)
     {
+        if (File.Exists(saveFilePath))
+        {
+            File.Delete(saveFilePath);
+        }
         string json = JsonUtility.ToJson(cardData);
         File.WriteAllText(saveFilePath, json);
         Debug.Log("Game saved");
@@ -41,6 +45,8 @@ public class SaveManager : MonoBehaviour
 [System.Serializable]
 public class GameData
 {
+    public int rowCount;
+    public int columnCount;
     public List<CardData> cards;
 }
 
@@ -51,4 +57,6 @@ public class CardData
 {
     public int pair;
     public bool Solved;
+    public Sprite cardFront;
+    public Sprite cardBack;
 }

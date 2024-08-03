@@ -28,12 +28,18 @@ public class GameController : MonoBehaviour
     {
         bool check = CardGenerationManager.instance.CheckCompleteStatus();
 
-        //if (check)
-        //{
-            mainPanel.GetComponent<CanvasGroup>().alpha = 1;
-            gamePanel.GetComponent<CanvasGroup>().alpha = 0;
-            gameTable.SetActive(false);
-        //}
+        if (!check)
+        {
+            SaveGame();
+        }
+        CardGenerationManager.instance.RestartGame();
+        mainPanel.GetComponent<CanvasGroup>().alpha = 1;
+        gamePanel.GetComponent<CanvasGroup>().alpha = 0;
+        mainPanel.SetActive(true);
+        gamePanel.SetActive(false);
+        gameTable.SetActive(false);
+        
+       
     }
     public void UpdateRowCount(float val)
     {
@@ -49,6 +55,8 @@ public class GameController : MonoBehaviour
     {
         mainPanel.GetComponent<CanvasGroup>().alpha = 0;
         gamePanel.GetComponent<CanvasGroup>().alpha = 1;
+        mainPanel.SetActive(false);
+        gamePanel.SetActive(true);
         gameTable.SetActive(true);
         CardGenerationManager.instance.StartGame((int)rowCount.value, (int)columnCount.value);
         
@@ -61,8 +69,12 @@ public class GameController : MonoBehaviour
 
     void LoadGame()
     {
-        CardGenerationManager.instance.gameData = saveManager.LoadGame();
-        
+        mainPanel.GetComponent<CanvasGroup>().alpha = 0;
+        gamePanel.GetComponent<CanvasGroup>().alpha = 1;
+        mainPanel.SetActive(false);
+        gamePanel.SetActive(true);
+        gameTable.SetActive(true);
+        CardGenerationManager.instance.LoadGameDeck(saveManager.LoadGame());
     }
 
     
